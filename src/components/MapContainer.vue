@@ -12,8 +12,9 @@
 </template>
 
 <script lang="ts">
-import Vue from "vue";
-import { geoPath, geoMercator } from "d3-geo";
+import Vue from "vue"
+import { geoPath, geoMercator } from "d3-geo"
+import { setInterval } from "timers";
 
 export default Vue.extend({
   name: "MapContainer",
@@ -21,50 +22,61 @@ export default Vue.extend({
     return {
       geojsonData: {},
       busData: []
-    };
+    }
   },
   async mounted() {
-    const geojsonFile = await fetch("../streets.json");
-    this.geojsonData = await geojsonFile.json();
-    this.getBusData();
+    const geojsonFile = await fetch("../streets.json")
+    this.geojsonData = await geojsonFile.json()
+    this.getBusData(true)
+    window.setInterval(this.getBusData,1000)
   },
   methods: {
-    async getBusData() {
-      const busRequest = await fetch(
-        `http://webservices.nextbus.com/service/publicJSONFeed?command=vehicleLocations&a=sf-muni&t=${Date.now() -
-          15000}`
-      );
-      const busJSON = await busRequest.json();
+    async getBusData(firstRun:boolean = false) {
+      const busRequest = await fetch(`http://webservices.nextbus.com/service/publicJSONFeed?command=vehicleLocations&a=sf-muni&t=${firstRun ? 0 : Date.now() - 15000}`)
+      const busJSON = await busRequest.json()
       const currentIds = this.busData.map(d=>d.properties.id)
       for (let i = 0; i < busJSON.vehicle.length; i++) {
-        console.log(busJSON.vehicle[i].id)
         if(!currentIds.includes(busJSON.vehicle[i].id)) {
-          this.busData.push({
-            coordinates: [busJSON.vehicle[i].lon, busJSON.vehicle[i].lat],
-            properties: {
-              id: busJSON.vehicle[i].id,
-              routeTag: busJSON.vehicle[i].routeTag,
-              secsSinceReport: busJSON.vehicle[i].secsSinceReport,
-              speedKmHr: busJSON.vehicle[i].speedKmHr,
-              heading: busJSON.vehicle[i].heading
-            }
+          this.busData.push(this.getBusObject(busJSON.vehicle[i]))
+        } else {
+          const updatingIndex = this.busData.findIndex((d) => {
+            return d.properties.id === busJSON.vehicle[i].id
           })
+          this.updateBus(busJSON.vehicle[i], updatingIndex)
         }
       }
+    },
+    getBusObject (bus:object) {
+      return {
+        coordinates: [bus.lon, bus.lat],
+        properties: {
+          id: bus.id,
+          routeTag: bus.routeTag,
+          secsSinceReport: bus.secsSinceReport,
+          speedKmHr: bus.speedKmHr,
+          heading: bus.heading
+        }
+      }
+    },
+    updateBus (bus:object, updatingIndex:number) {
+      Vue.set(this.busData[updatingIndex], 'coordinates', [bus.lon, bus.lat])
+      Vue.set(this.busData[updatingIndex], 'properties.secsSinceReport', bus.secsSinceReport)
+      Vue.set(this.busData[updatingIndex], 'properties.speedKmHr', bus.speedKmHr)
+      Vue.set(this.busData[updatingIndex], 'properties.heading', bus.heading)
     }
   },
   computed: {
     pathFunction() {
-      return geoPath(this.projection);
+      return geoPath(this.projection)
     },
     projection () {
       return geoMercator()
         .scale(306337.6140209504)
         .center([-122.43595722806097, 37.77071992617303]) //projection center
-        .translate([450, 450]);
+        .translate([450, 450])
     }
   }
-});
+})
 </script>
 
 <style scoped>
