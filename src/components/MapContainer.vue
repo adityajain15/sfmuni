@@ -1,68 +1,69 @@
 <template>
-  <svg height="900" width="900">
-    <g id="mapPaths">
-      <template v-for="feature in geojsonData.features">
-        <path :d="pathFunction(feature)" :class="feature.type"/>
-      </template>
+  <svg id="map">
+    <g id="panZoomRoot">
+      <g id="mapPaths"></g>
+      <g :style="vehicleStyle">
+        <template v-for="vehicle in vehicleData">
+          <template v-if="checkedValues.length === 0 || checkedValues.includes(vehicle.properties.routeTag)">
+            <text :x="projection(vehicle.coordinates)[0]" :y="projection(vehicle.coordinates)[1]" :route="vehicle.properties.routeTag" :class="Number.parseInt(vehicle.properties.routeTag) ? 'bus' : 'trolley'">{{Number.parseInt(vehicle.properties.routeTag) ? '🚌' : '🚋'}}</text>
+          </template>
+        </template>
+      </g>
     </g>
-    <template v-for="bus in busData">
-      <text :x="projection(bus.coordinates)[0]" :y="projection(bus.coordinates)[1]">🚌</text>
-    </template>
   </svg>
 </template>
 
 <script lang="ts">
 import Vue from "vue"
-import { geoPath, geoMercator } from "d3-geo"
-import { setInterval } from "timers";
+import { geoPath, geoMercator } from 'd3-geo'
+import { scaleLog } from 'd3-scale'
+import panzoom from 'panzoom'
+const _debounce = require('lodash.debounce')
+import ndjsonStream from 'can-ndjson-stream';
 
 export default Vue.extend({
   name: "MapContainer",
+  props: ['vehicleData', 'checkedValues'],
   data() {
     return {
       geojsonData: {},
-      busData: []
+      zoom: undefined,
+      zoomScale: undefined
     }
   },
-  async mounted() {
-    const geojsonFile = await fetch("../streets.json")
-    this.geojsonData = await geojsonFile.json()
-    this.getBusData(true)
-    window.setInterval(this.getBusData,1000)
+  async created () {
+    // get the map file
+    this.geojsonData.features = []
+    this.geojsonData.type = "FeatureCollection"
+    const geojsonFile = await fetch("./all.ndjson")
+    const fileStream = await ndjsonStream(geojsonFile.body)
+    const reader = fileStream.getReader();
+    const mapPaths = document.getElementById('mapPaths')
+    while(true){
+      const result = await reader.read()
+      if (result.done) { break }
+      const newPath = document.createElementNS('http://www.w3.org/2000/svg','path')
+      newPath.setAttributeNS(null, 'd', String(this.pathFunction(result.value)))
+      newPath.setAttributeNS(null, 'type', result.value.geometry.type)
+      mapPaths.appendChild(newPath)
+    }
+  },
+  mounted() {
+    // handle zooming
+    this.zoom = panzoom(document.getElementById('panZoomRoot'), {
+      maxZoom: 10,
+      minZoom: 1,
+      beforeWheel: _debounce(()=>{this.setZoomScale()}, 60)
+    })
+    this.setZoomScale()
+    const map = document.getElementById('map')
+    map.addEventListener('dblclick', this.setZoomScale)
+    map.addEventListener('touchstart', _debounce(()=>{this.setZoomScale()}, 60))
+    map.addEventListener('keydown', _debounce(()=>{this.setZoomScale()}, 60))
   },
   methods: {
-    async getBusData(firstRun:boolean = false) {
-      const busRequest = await fetch(`http://webservices.nextbus.com/service/publicJSONFeed?command=vehicleLocations&a=sf-muni&t=${firstRun ? 0 : Date.now() - 15000}`)
-      const busJSON = await busRequest.json()
-      const currentIds = this.busData.map(d=>d.properties.id)
-      for (let i = 0; i < busJSON.vehicle.length; i++) {
-        if(!currentIds.includes(busJSON.vehicle[i].id)) {
-          this.busData.push(this.getBusObject(busJSON.vehicle[i]))
-        } else {
-          const updatingIndex = this.busData.findIndex((d) => {
-            return d.properties.id === busJSON.vehicle[i].id
-          })
-          this.updateBus(busJSON.vehicle[i], updatingIndex)
-        }
-      }
-    },
-    getBusObject (bus:object) {
-      return {
-        coordinates: [bus.lon, bus.lat],
-        properties: {
-          id: bus.id,
-          routeTag: bus.routeTag,
-          secsSinceReport: bus.secsSinceReport,
-          speedKmHr: bus.speedKmHr,
-          heading: bus.heading
-        }
-      }
-    },
-    updateBus (bus:object, updatingIndex:number) {
-      Vue.set(this.busData[updatingIndex], 'coordinates', [bus.lon, bus.lat])
-      Vue.set(this.busData[updatingIndex], 'properties.secsSinceReport', bus.secsSinceReport)
-      Vue.set(this.busData[updatingIndex], 'properties.speedKmHr', bus.speedKmHr)
-      Vue.set(this.busData[updatingIndex], 'properties.heading', bus.heading)
+    setZoomScale () {
+      this.zoomScale = this.zoom.getTransform().scale
     }
   },
   computed: {
@@ -73,19 +74,35 @@ export default Vue.extend({
       return geoMercator()
         .scale(306337.6140209504)
         .center([-122.43595722806097, 37.77071992617303]) //projection center
-        .translate([450, 450])
+        .translate([this.$el.clientWidth / 2, this.$el.clientHeight / 2])
+    },
+    emojiSize () {
+      return scaleLog().domain([1,10]).range([12,2])
+    },
+    vehicleStyle () {
+      if (this.zoom === undefined) return '15px'
+      return {
+        'font-size': `${this.emojiSize(this.zoomScale)}px` 
+      }
     }
   }
 })
 </script>
 
-<style scoped>
-span {
-  display: block;
+<style>
+svg {
+  height: 100%;
+  width: 100%;
+  box-sizing: border-box;
+  background:rgb(70, 152, 199);
 }
 path {
   stroke-width: 0.3px;
-  stroke: black;
+  stroke: white;
   fill: none;
+}
+path[type=polygon], path[type=MultiPolygon]{
+  fill: black;
+  stroke: none;
 }
 </style>
