@@ -4,7 +4,7 @@
       <button @click="resetChecked">Reset</button>
       <span>Filter routes</span>
       <template v-for="(route, index) in allRoutes">
-        <div class="checkboxContainer">
+        <div class="checkboxContainer" :key="route">
           <input type="checkbox" :id="idString(index)" :value="route" v-model="checkedValues"/>
           <label :for="idString(index)">{{route}}</label>
         </div>
@@ -25,12 +25,12 @@ export default Vue.extend({
     }
   },
   methods: {
-    idString (id) {
+    idString (id:number) {
       return `route-${id}`
     },
     resetChecked () {
       this.checkedValues = []
-      Array.from(document.querySelectorAll('input[type=checkbox]')).forEach(element => {
+      Array.from(document.querySelectorAll('input[type=checkbox]')).forEach((element:any) => {
         element.checked = false
       });
     }

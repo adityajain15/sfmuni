@@ -4,7 +4,7 @@
 
 <script lang="ts">
 import Vue from "vue"
-import {TweenMax, Power2} from 'gsap'
+import {TweenMax, Power1} from 'gsap'
 
 export default Vue.extend({
   name: "MapContainer",
@@ -22,7 +22,7 @@ export default Vue.extend({
   watch: {
     xComputed (newVal, oldVal) {
       const update = function () {
-        let tweenedVal = Object.values(tweenFrom)
+        let tweenedVal = (<any>Object).values(tweenFrom)
         tweenedVal.pop()
         this.xPosition = tweenedVal[0]
       }
@@ -34,7 +34,7 @@ export default Vue.extend({
     },
     yComputed (newVal, oldVal) {
       const update = function () {
-        let tweenedVal = Object.values(tweenFrom)
+        let tweenedVal = (<any>Object).values(tweenFrom)
         tweenedVal.pop()
         this.yPosition = tweenedVal[0]
       }

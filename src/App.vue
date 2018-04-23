@@ -10,6 +10,23 @@ import Vue from 'vue'
 import MapContainer from './components/MapContainer.vue'
 import FilterContainer from './components/FilterContainer.vue'
 
+interface VehicleJSON {
+  dirTag: string,
+  heading: string,
+  id: string,
+  lon: string,
+  lat: string,
+  predictable: string,
+  routeTag: string,
+  secsSinceReport: string,
+  speedKmHr: string
+}
+
+interface VehicleData {
+  coordinates: Array<number>,
+  properties: object
+}
+
 export default Vue.extend({
   name: 'app',
   components: {
@@ -29,7 +46,7 @@ export default Vue.extend({
   },
   computed: {
     allRoutes () {
-      const allRoutes:String[] = []
+      const allRoutes:Array<string> = []
       for (let i = 0; i < this.vehicleData.length; i++) {
         if(!allRoutes.includes(this.vehicleData[i].properties.routeTag)){
           allRoutes.push(this.vehicleData[i].properties.routeTag)
@@ -54,7 +71,7 @@ export default Vue.extend({
         }
       }
     },
-    getvehicleObject (vehicle:object) {
+    getvehicleObject (vehicle:VehicleJSON) {
       return {
         coordinates: [vehicle.lon, vehicle.lat],
         properties: {
@@ -66,7 +83,7 @@ export default Vue.extend({
         }
       }
     },
-    updatevehicle (vehicle:object, updatingIndex:number) {
+    updatevehicle (vehicle:VehicleJSON, updatingIndex:number) {
       Vue.set(this.vehicleData[updatingIndex], 'coordinates', [vehicle.lon, vehicle.lat])
       Vue.set(this.vehicleData[updatingIndex].properties, 'secsSinceReport', vehicle.secsSinceReport)
       Vue.set(this.vehicleData[updatingIndex].properties, 'speedKmHr', vehicle.speedKmHr)
