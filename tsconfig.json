@@ -25,6 +25,4 @@
   ]
 }
 
-// "src/**/*.ts",
-// "src/**/*.vue",
-// "tests/**/*.ts"
+// "src/**/*.ts","src/**/*.vue","tests/**/*.ts"

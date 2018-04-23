@@ -12,6 +12,7 @@
     "can-ndjson-stream": "^0.1.8",
     "d3": "^5.1.0",
     "d3-geo": "^1.10.0",
+    "gsap": "^1.20.4",
     "lodash.debounce": "^4.0.8",
     "panzoom": "^4.5.0",
     "vue": "^2.5.13"
